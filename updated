@@ -1,0 +1,207 @@
+import com.google.gson.*;
+import com.google.gson.reflect.TypeToken;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.io.*;
+import java.lang.reflect.Type;
+import java.util.*;
+
+class Room {
+    int roomNumber;
+    String type;
+    boolean isBooked;
+    String customerName;
+    int nights;
+    double pricePerNight;
+
+    public Room(int roomNumber, String type, double price) {
+        this.roomNumber = roomNumber;
+        this.type = type;
+        this.pricePerNight = price;
+        this.isBooked = false;
+        this.customerName = "";
+        this.nights = 0;
+    }
+
+    public double calculateBill() {
+        return nights * pricePerNight;
+    }
+}
+
+public class SimpleHotelManagement extends JFrame {
+    private final String DATA_FILE = "rooms.json";
+    private Map<Integer, Room> rooms = new HashMap<>();
+    private DefaultTableModel tableModel;
+    private JTable table;
+    private JLabel revenueLabel;
+    private double totalRevenue = 0;
+    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+    public SimpleHotelManagement() {
+        setTitle("Hotel Management System");
+        setSize(700, 450);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
+
+        loadRooms();
+        initUI();
+        refreshTable();
+        setVisible(true);
+    }
+
+    private void initUI() {
+        // Top panel for buttons
+        JPanel panelTop = new JPanel();
+        JButton btnBook = new JButton("Book Room");
+        JButton btnCheckout = new JButton("Check-Out");
+        JButton btnRefresh = new JButton("Refresh Table");
+        panelTop.add(btnBook);
+        panelTop.add(btnCheckout);
+        panelTop.add(btnRefresh);
+        add(panelTop, BorderLayout.NORTH);
+
+        // Table to show rooms
+        tableModel = new DefaultTableModel(new String[]{"Room #", "Type", "Status", "Customer", "Nights", "Price"}, 0);
+        table = new JTable(tableModel);
+        add(new JScrollPane(table), BorderLayout.CENTER);
+
+        // Revenue label
+        revenueLabel = new JLabel("Total Revenue: $" + totalRevenue);
+        revenueLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        add(revenueLabel, BorderLayout.SOUTH);
+
+        // Button actions
+        btnBook.addActionListener(e -> bookRoomDialog());
+        btnCheckout.addActionListener(e -> checkoutRoomDialog());
+        btnRefresh.addActionListener(e -> refreshTable());
+    }
+
+    // ---------- Room Booking ----------
+    private void bookRoomDialog() {
+        JTextField txtRoom = new JTextField();
+        JTextField txtName = new JTextField();
+        JTextField txtNights = new JTextField();
+        JComboBox<String> typeCombo = new JComboBox<>(new String[]{"Single", "Double", "Suite"});
+        Object[] message = {"Room Number:", txtRoom, "Customer Name:", txtName, "Room Type:", typeCombo, "Number of Nights:", txtNights};
+
+        int option = JOptionPane.showConfirmDialog(this, message, "Book Room", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            try {
+                int roomNumber = Integer.parseInt(txtRoom.getText());
+                String name = txtName.getText().trim();
+                int nights = Integer.parseInt(txtNights.getText());
+                String type = (String) typeCombo.getSelectedItem();
+
+                Room room = rooms.get(roomNumber);
+                if (room == null) {
+                    double price = switch (type) {
+                        case "Single" -> 100;
+                        case "Double" -> 150;
+                        case "Suite" -> 250;
+                        default -> 100;
+                    };
+                    room = new Room(roomNumber, type, price);
+                    rooms.put(roomNumber, room);
+                }
+
+                if (room.isBooked) {
+                    JOptionPane.showMessageDialog(this, "Room already booked!");
+                    return;
+                }
+
+                room.isBooked = true;
+                room.customerName = name;
+                room.nights = nights;
+                room.type = type;
+
+                saveRooms();
+                refreshTable();
+                JOptionPane.showMessageDialog(this, "Room booked successfully!");
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Invalid input!");
+            }
+        }
+    }
+
+    // ---------- Check-Out ----------
+    private void checkoutRoomDialog() {
+        String input = JOptionPane.showInputDialog(this, "Enter Room Number to Check-Out:");
+        if (input != null) {
+            try {
+                int roomNumber = Integer.parseInt(input);
+                Room room = rooms.get(roomNumber);
+                if (room == null || !room.isBooked) {
+                    JOptionPane.showMessageDialog(this, "Room is not booked!");
+                    return;
+                }
+
+                double bill = room.calculateBill();
+                JOptionPane.showMessageDialog(this,
+                        "Customer: " + room.customerName + "\nTotal Bill: $" + bill);
+
+                totalRevenue += bill;
+                revenueLabel.setText("Total Revenue: $" + totalRevenue);
+
+                // Reset room
+                room.isBooked = false;
+                room.customerName = "";
+                room.nights = 0;
+
+                saveRooms();
+                refreshTable();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Invalid input!");
+            }
+        }
+    }
+
+    // ---------- Table & Data ----------
+    private void refreshTable() {
+        tableModel.setRowCount(0);
+        for (Room room : rooms.values()) {
+            tableModel.addRow(new Object[]{
+                    room.roomNumber,
+                    room.type,
+                    room.isBooked ? "Booked" : "Available",
+                    room.customerName,
+                    room.nights,
+                    room.pricePerNight
+            });
+        }
+    }
+
+    private void loadRooms() {
+        File file = new File(DATA_FILE);
+        if (file.exists()) {
+            try (Reader reader = new FileReader(file)) {
+                Type type = new TypeToken<Map<Integer, Room>>() {}.getType();
+                rooms = new Gson().fromJson(reader, type);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            // Predefine some rooms
+            rooms.put(101, new Room(101, "Single", 100));
+            rooms.put(102, new Room(102, "Double", 150));
+            rooms.put(103, new Room(103, "Suite", 250));
+            rooms.put(104, new Room(104, "Single", 100));
+            rooms.put(105, new Room(105, "Double", 150));
+            saveRooms();
+        }
+    }
+
+    private void saveRooms() {
+        try (Writer writer = new FileWriter(DATA_FILE)) {
+            new GsonBuilder().setPrettyPrinting().create().toJson(rooms, writer);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(SimpleHotelManagement::new);
+    }
+}
