@@ -1,0 +1,118 @@
+import java.util.*;
+
+class Room {
+    int roomNumber;
+    boolean isBooked;
+    String customerName;
+    int nights;
+    double pricePerNight;
+
+    public Room(int roomNumber, double pricePerNight) {
+        this.roomNumber = roomNumber;
+        this.isBooked = false;
+        this.customerName = "";
+        this.nights = 0;
+        this.pricePerNight = pricePerNight;
+    }
+
+    public double calculateBill() {
+        return nights * pricePerNight;
+    }
+}
+
+public class HotelManagement {
+    static Scanner sc = new Scanner(System.in);
+    static Map<Integer, Room> rooms = new HashMap<>();
+
+    public static void main(String[] args) {
+        initializeRooms();
+
+        int choice;
+        do {
+            System.out.println("\n--- Hotel Management System ---");
+            System.out.println("1. Book Room");
+            System.out.println("2. Check-out");
+            System.out.println("3. Display Room Status");
+            System.out.println("4. Exit");
+            System.out.print("Enter your choice: ");
+            choice = sc.nextInt();
+            sc.nextLine(); // Consume newline
+
+            switch(choice) {
+                case 1 -> bookRoom();
+                case 2 -> checkOut();
+                case 3 -> displayRooms();
+                case 4 -> System.out.println("Exiting system. Goodbye!");
+                default -> System.out.println("Invalid choice. Try again.");
+            }
+        } while(choice != 4);
+    }
+
+    static void initializeRooms() {
+        // Let's say hotel has 5 rooms with different prices
+        rooms.put(101, new Room(101, 100));
+        rooms.put(102, new Room(102, 120));
+        rooms.put(103, new Room(103, 150));
+        rooms.put(104, new Room(104, 200));
+        rooms.put(105, new Room(105, 250));
+    }
+
+    static void bookRoom() {
+        System.out.print("Enter room number to book: ");
+        int roomNumber = sc.nextInt();
+        sc.nextLine(); // Consume newline
+
+        Room room = rooms.get(roomNumber);
+        if (room == null) {
+            System.out.println("Room does not exist!");
+            return;
+        }
+
+        if (room.isBooked) {
+            System.out.println("Room is already booked.");
+            return;
+        }
+
+        System.out.print("Enter customer name: ");
+        String name = sc.nextLine();
+        System.out.print("Enter number of nights: ");
+        int nights = sc.nextInt();
+
+        room.isBooked = true;
+        room.customerName = name;
+        room.nights = nights;
+
+        System.out.println("Room " + roomNumber + " booked successfully for " + name);
+    }
+
+    static void checkOut() {
+        System.out.print("Enter room number to check-out: ");
+        int roomNumber = sc.nextInt();
+        Room room = rooms.get(roomNumber);
+
+        if (room == null || !room.isBooked) {
+            System.out.println("Room is not booked.");
+            return;
+        }
+
+        double bill = room.calculateBill();
+        System.out.println("Customer: " + room.customerName);
+        System.out.println("Total bill: $" + bill);
+
+        // Reset room
+        room.isBooked = false;
+        room.customerName = "";
+        room.nights = 0;
+
+        System.out.println("Check-out successful. Room " + roomNumber + " is now available.");
+    }
+
+    static void displayRooms() {
+        System.out.println("\nRoom Status:");
+        for (Room room : rooms.values()) {
+            System.out.println("Room " + room.roomNumber + " | " +
+                (room.isBooked ? "Booked by " + room.customerName : "Available") +
+                " | Price per night: $" + room.pricePerNight);
+        }
+    }
+}
